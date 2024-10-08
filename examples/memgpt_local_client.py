@@ -1,16 +1,16 @@
 import json
 
 from letta import create_client
-from letta.memory import ChatMemory
+from letta.memory import DummyRecallMemory
 
 
 def main():
 
     # Create a `LocalClient`
-    client = create_client()
+    client = create_client(base_url="http://192.168.1.106:11434")
 
     # Create an agent
-    agent_state = client.create_agent(name="my_agent", memory=ChatMemory(human="My name is Sarah.", persona="I am a friendly AI."))
+    agent_state = client.create_agent(name="my_agent", memory=DummyRecallMemory())
     print(f"Created agent: {agent_state.name} with ID {str(agent_state.id)}")
 
     # Send a message to the agent

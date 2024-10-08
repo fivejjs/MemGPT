@@ -110,7 +110,7 @@ class OllamaProvider(OpenAIProvider):
                     model=model["name"],
                     model_endpoint_type="ollama",
                     model_endpoint=self.base_url,
-                    context_window=context_window,
+                    context_window=context_window or 8196,
                 )
             )
         return configs
@@ -149,7 +149,15 @@ class OllamaProvider(OpenAIProvider):
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         # TODO: filter embedding models
-        return []
+        return [
+            EmbeddingConfig(
+                embedding_model="nomic-embed-text",
+                embedding_endpoint_type="ollama",
+                embedding_endpoint=self.base_url,
+                embedding_dim=512,
+                embedding_chunk_size=300,
+            ),
+        ]
 
 
 class GroqProvider(OpenAIProvider):

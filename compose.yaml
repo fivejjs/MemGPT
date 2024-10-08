@@ -44,6 +44,9 @@ services:
    #volumes:
       #- ./configs/server_config.yaml:/root/.letta/config # config file
       #- ~/.letta/credentials:/root/.letta/credentials # credentials file
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   letta_nginx:
     hostname: letta-nginx
     image: nginx:stable-alpine3.17-slim

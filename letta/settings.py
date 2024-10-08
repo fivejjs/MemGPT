@@ -20,7 +20,7 @@ class ModelSettings(BaseSettings):
     anthropic_api_key: Optional[str] = None
 
     # ollama
-    ollama_base_url: Optional[str] = None
+    ollama_base_url: Optional[str] = "http://192.168.1.106:11434"
 
     # azure
     azure_api_key: Optional[str] = None
