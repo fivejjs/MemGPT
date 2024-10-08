@@ -239,6 +239,7 @@ class Agent(BaseAgent):
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
         # link tools
+        self.tools = tools
         self.link_tools(tools)
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -337,6 +338,9 @@ class Agent(BaseAgent):
             assert tool.name in self.agent_state.tools, f"Tool {tool} not found in agent_state.tools"
         for tool_name in self.agent_state.tools:
             assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
+
+        # Update tools
+        self.tools = tools
 
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
         self.functions = []
@@ -482,7 +486,7 @@ class Agent(BaseAgent):
                 inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             )
 
-            if len(response.choices) == 0:
+            if len(response.choices) == 0 or response.choices[0] is None:
                 raise Exception(f"API call didn't return a message: {response}")
 
             # special case for 'length'
@@ -621,6 +625,11 @@ class Agent(BaseAgent):
             # (Still parsing function args)
             # Handle requests for immediate heartbeat
             heartbeat_request = function_args.pop("request_heartbeat", None)
+
+            # Edge case: heartbeat_request is returned as a stringified boolean, we will attempt to parse:
+            if isinstance(heartbeat_request, str) and heartbeat_request.lower().strip() == "true":
+                heartbeat_request = True
+
             if not isinstance(heartbeat_request, bool) or heartbeat_request is None:
                 printd(
                     f"{CLI_WARNING_PREFIX}'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
@@ -1352,6 +1361,10 @@ def save_agent(agent: Agent, ms: MetadataStore):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)
+
+    for tool in agent.tools:
+        if ms.get_tool(tool_name=tool.name, user_id=tool.user_id) is None:
+            ms.create_tool(tool)
 
     agent.agent_state = ms.get_agent(agent_id=agent_id)
     assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"

@@ -51,7 +51,7 @@ from letta.providers import (
     OpenAIProvider,
     VLLMProvider,
 )
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
     Block,
@@ -272,7 +272,13 @@ class SyncServer(Server):
         if model_settings.gemini_api_key:
             self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
         if model_settings.azure_api_key and model_settings.azure_base_url:
-            self._enabled_providers.append(AzureProvider(api_key=model_settings.azure_api_key, base_url=model_settings.azure_base_url))
+            self._enabled_providers.append(
+                AzureProvider(
+                    api_key=model_settings.azure_api_key,
+                    base_url=model_settings.azure_base_url,
+                    api_version=model_settings.azure_api_version,
+                )
+            )
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -335,7 +341,10 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-            letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            if agent_state.agent_type == AgentType.memgpt_agent:
+                letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            else:
+                raise NotImplementedError("Only base agents are supported as of right now!")
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -599,7 +608,7 @@ class SyncServer(Server):
                 )
 
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=message, timestamp=timestamp)
         return usage
 
     def system_message(
@@ -787,6 +796,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
+                agent_type=request.agent_type or AgentType.memgpt_agent,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,
@@ -1921,7 +1931,10 @@ class SyncServer(Server):
         if user_id is None:
             return self.get_default_user()
         else:
-            return self.get_user(user_id=user_id)
+            try:
+                return self.get_user(user_id=user_id)
+            except ValueError:
+                raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""
